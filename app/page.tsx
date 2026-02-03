@@ -1,244 +1,222 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import { Download, Bot, Settings, Users, LogOut, Play, Square, Save, ExternalLink } from "lucide-react";
+import { Download, Bot, Settings, Users, LogOut, Play, Square, Save, Radio, BarChart3, Megaphone, Heart } from "lucide-react";
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState("download");
     const [url, setUrl] = useState("");
     const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-
-    // Bot Config States
     const [botToken, setBotToken] = useState("");
-    const [maintenance, setMaintenance] = useState(false);
-    const [botStatus, setBotStatus] = useState("Parado");
+
+    // Fake Data for UI Layout
+    const [users] = useState([
+        { id: 1, name: "Maria", user: "@mary", last: "Hoje 10:00" },
+        { id: 2, name: "Joao", user: "@john", last: "Ontem 14:00" },
+    ]);
 
     const handleDownload = async (e: FormEvent) => {
         e.preventDefault();
         if (!url) return;
-
         setLoading(true);
-        setDownloadStatus("Iniciando download...");
-
+        setDownloadStatus("Processando...");
         try {
             const res = await fetch("/api/download", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ url }),
             });
-
             const data = await res.json();
-
-            if (res.ok) {
-                setDownloadStatus(`Sucesso! Vídeo pronto: ${data.title}`);
-                // In a real app, trigger prompt or show video player
+            if (res.ok && data.download_url) {
+                setDownloadStatus("✅ Sucesso! Clique abaixo para baixar.");
+                window.open(data.download_url, '_blank');
             } else {
-                setDownloadStatus("Erro: " + data.error);
+                setDownloadStatus("❌ Erro: " + (data.error || "Desconhecido"));
             }
-        } catch (err) {
-            setDownloadStatus("Erro de conexão ao servidor.");
-        } finally {
-            setLoading(false);
-        }
+        } catch { setDownloadStatus("❌ Erro de conexão."); }
+        setLoading(false);
+    };
+
+    const handleSetWebhook = async () => {
+        if (!botToken) return alert("Insira o token!");
+        const webhookUrl = `${window.location.origin}/api/bot/webhook?token=${botToken}`;
+        const url = `https://api.telegram.org/bot${botToken}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
+        window.open(url, '_blank');
+        alert(`Tentando configurar Webhook para: ${webhookUrl}\nVerifique a nova aba!`);
     };
 
     return (
-        <main className="min-h-screen bg-[#F0F2F5] flex flex-col items-center py-10 px-4">
-            {/* Header */}
-            <header className="w-full max-w-5xl bg-primary text-white rounded-2xl shadow-lg p-6 mb-8 flex justify-between items-center transition-transform hover:scale-[1.01] duration-300">
+        <main className="min-h-screen bg-[#F0F2F5] flex flex-col items-center py-10 px-4 font-sans">
+            <header className="w-full max-w-6xl bg-gradient-to-r from-primary to-primary_dark text-white rounded-2xl shadow-xl p-6 mb-8 flex justify-between items-center">
                 <div className="flex items-center gap-4">
-                    <div className="bg-white/20 p-3 rounded-full">
+                    <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
                         <Download className="w-8 h-8 text-white" />
                     </div>
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">AlfaVision Web</h1>
-                        <p className="text-white/80 text-sm">Painel de Controle & Downloader</p>
+                        <p className="text-white/90 text-sm">Painel de Controle Completo</p>
                     </div>
                 </div>
                 <div className="text-right hidden sm:block">
-                    <p className="font-semibold">Status: <span className="text-green-300">Online</span></p>
-                    <p className="text-xs text-white/70">Vercel Edition</p>
+                    <p className="font-semibold flex items-center gap-2 justify-end"><span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Online</p>
                 </div>
             </header>
 
-            {/* Main Content */}
-            <div className="w-full max-w-5xl flex flex-col md:flex-row gap-6">
-
-                {/* Sidebar */}
-                <nav className="w-full md:w-64 bg-white rounded-xl shadow-sm p-4 h-fit sticky top-6">
+            <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-8">
+                {/* Sidebar Navigation */}
+                <nav className="w-full lg:w-72 bg-white rounded-2xl shadow-lg p-5 h-fit sticky top-6">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 px-2">Menu Principal</p>
                     <ul className="space-y-2">
-                        <li>
-                            <button
-                                onClick={() => setActiveTab("download")}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === "download"
-                                        ? "bg-primary/10 text-primary border-l-4 border-primary"
-                                        : "text-gray-600 hover:bg-gray-50"
-                                    }`}
-                            >
-                                <Download className="w-5 h-5" />
-                                Baixar Vídeos
-                            </button>
-                        </li>
-                        <li>
-                            <button
-                                onClick={() => setActiveTab("bot")}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === "bot"
-                                        ? "bg-telegram/10 text-telegram border-l-4 border-telegram"
-                                        : "text-gray-600 hover:bg-gray-50"
-                                    }`}
-                            >
-                                <Bot className="w-5 h-5" />
-                                Gerenciar Bot
-                            </button>
-                        </li>
-                        <li>
-                            <button
-                                onClick={() => setActiveTab("cookies")}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === "cookies"
-                                        ? "bg-purple-100 text-purple-600 border-l-4 border-purple-600"
-                                        : "text-gray-600 hover:bg-gray-50"
-                                    }`}
-                            >
-                                <Settings className="w-5 h-5" />
-                                Cookies & Acesso
-                            </button>
-                        </li>
-                        <li className="pt-4 mt-4 border-t border-gray-100">
-                            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-red-500 hover:bg-red-50 transition-colors">
-                                <LogOut className="w-5 h-5" />
-                                Sair
-                            </button>
-                        </li>
+                        {[
+                            { id: "download", icon: Download, label: "Baixar Vídeos" },
+                            { id: "bot", icon: Bot, label: "Telegram Bot" },
+                            { id: "broadcast", icon: Megaphone, label: "Broadcast" },
+                            { id: "users", icon: Users, label: "Usuários" },
+                            { id: "donors", icon: Heart, label: "Doadores" },
+                            { id: "cookies", icon: Settings, label: "Configurar Cookies" },
+                        ].map((item) => (
+                            <li key={item.id}>
+                                <button
+                                    onClick={() => setActiveTab(item.id)}
+                                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-200 ${activeTab === item.id
+                                            ? "bg-primary text-white shadow-md transform scale-[1.02]"
+                                            : "text-gray-600 hover:bg-gray-50 hover:pl-5"
+                                        }`}
+                                >
+                                    <item.icon className="w-5 h-5" />
+                                    {item.label}
+                                </button>
+                            </li>
+                        ))}
                     </ul>
                 </nav>
 
                 {/* Content Area */}
-                <div className="flex-1 bg-white rounded-xl shadow-sm p-8 min-h-[500px]">
+                <div className="flex-1 bg-white rounded-2xl shadow-lg p-8 min-h-[600px] border border-gray-100">
 
-                    {/* TAB: DOWNLOAD */}
                     {activeTab === "download" && (
-                        <div className="space-y-6 animate-fadeIn">
-                            <div className="border-b pb-4">
-                                <h2 className="text-2xl font-bold text-gray-800">Baixar Vídeo Manualmente</h2>
-                                <p className="text-gray-500">Suporta Shopee, TikTok, Kwai, Instagram, Facebook, YouTube.</p>
-                            </div>
-
-                            <form onSubmit={handleDownload} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Cole o Link do Vídeo</label>
-                                    <input
-                                        type="text"
-                                        placeholder="https://..."
-                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                                        value={url}
-                                        onChange={(e) => setUrl(e.target.value)}
-                                    />
-                                </div>
-
+                        <div className="animate-fade-in-up">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Download className="text-primary" /> Baixar Vídeos</h2>
+                            <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                                <input
+                                    type="text"
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                    placeholder="Cole o link aqui (Shopee, TikTok, Instagram, Youtube...)"
+                                    className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-lg mb-4 shadow-sm"
+                                />
                                 <button
-                                    type="submit"
+                                    onClick={handleDownload}
                                     disabled={loading}
-                                    className={`w-full py-3 rounded-lg font-bold text-white shadow-md transition-all ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-primary hover:bg-primary_dark active:scale-[0.98]"
-                                        }`}
+                                    className="w-full py-4 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-primary_dark hover:shadow-lg transform active:scale-[0.99] transition-all flex justify-center items-center gap-2"
                                 >
-                                    {loading ? "Processando..." : "🚀 Baixar Agora"}
+                                    {loading ? <span className="animate-spin">⌛</span> : <Download />}
+                                    BAIXAR AGORA
                                 </button>
-                            </form>
-
-                            {downloadStatus && (
-                                <div className={`p-4 rounded-lg mt-4 ${downloadStatus.includes("Sucesso") ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
-                                    <p className="font-medium">{downloadStatus}</p>
-                                </div>
-                            )}
+                                {downloadStatus && (
+                                    <div className="mt-4 p-4 rounded-lg bg-blue-50 text-blue-800 font-medium border border-blue-100 animate-pulse">
+                                        {downloadStatus}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
-                    {/* TAB: BOT */}
                     {activeTab === "bot" && (
-                        <div className="space-y-6 animate-fadeIn">
-                            <div className="border-b pb-4 flex justify-between items-center">
-                                <div>
-                                    <h2 className="text-2xl font-bold text-gray-800">Configuração do Bot Telegram</h2>
-                                    <p className="text-gray-500">Controle o status e comportamento do bot.</p>
-                                </div>
-                                <div className={`px-4 py-1 rounded-full text-sm font-bold ${botStatus === "Rodando" ? "bg-green-100 text-green-600" : "bg-gray-200 text-gray-600"}`}>
-                                    {botStatus}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-6">
-                                <div className="bg-gray-50 p-5 rounded-lg border border-gray-200">
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Token do Bot (BotFather)</label>
+                        <div className="animate-fade-in-up">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Bot className="text-telegram" /> Configuração do Bot</h2>
+                            <div className="space-y-6">
+                                <div className="bg-blue-50 p-5 rounded-xl border-l-4 border-telegram">
+                                    <h3 className="font-bold text-telegram mb-2">🚀 Como ativar no Vercel (Webhooks)</h3>
+                                    <p className="text-sm text-blue-800 mb-4">Diferente do PC, o bot na web precisa de um Webhook para funcionar.</p>
                                     <div className="flex gap-2">
                                         <input
-                                            type="password"
-                                            placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-                                            className="flex-1 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:border-telegram"
+                                            type="text"
+                                            placeholder="Cole o Token do BotFather aqui..."
+                                            className="flex-1 px-4 py-2 rounded-lg border border-blue-200 focus:outline-none"
                                             value={botToken}
                                             onChange={(e) => setBotToken(e.target.value)}
                                         />
-                                        <button className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded font-medium transition-colors">
-                                            <Save className="w-5 h-5" />
+                                        <button
+                                            onClick={handleSetWebhook}
+                                            className="bg-telegram text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-600 transition-colors"
+                                        >
+                                            ATIVAR BOT
                                         </button>
                                     </div>
-                                </div>
-
-                                <div className="flex gap-4">
-                                    <button
-                                        onClick={() => setBotStatus("Rodando")}
-                                        className="flex-1 bg-telegram hover:bg-[#0077b5] text-white py-4 rounded-xl shadow-lg flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1"
-                                    >
-                                        <Play className="w-8 h-8" />
-                                        <span className="font-bold">INICIAR BOT</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setBotStatus("Parado")}
-                                        className="flex-1 bg-red-500 hover:bg-red-600 text-white py-4 rounded-xl shadow-lg flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1"
-                                    >
-                                        <Square className="w-8 h-8" />
-                                        <span className="font-bold">PARAR BOT</span>
-                                    </button>
-                                </div>
-
-                                <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
-                                    <input
-                                        type="checkbox"
-                                        id="maintenance"
-                                        checked={maintenance}
-                                        onChange={(e) => setMaintenance(e.target.checked)}
-                                        className="w-5 h-5 text-primary rounded focus:ring-primary"
-                                    />
-                                    <label htmlFor="maintenance" className="font-medium cursor-pointer select-none">
-                                        Ativar Modo Manutenção (Responde usuários que está em reforma)
-                                    </label>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* TAB: COOKIES */}
-                    {activeTab === "cookies" && (
-                        <div className="space-y-6 animate-fadeIn">
-                            <div className="border-b pb-4">
-                                <h2 className="text-2xl font-bold text-gray-800">Gerenciamento de Cookies</h2>
-                                <p className="text-gray-500">Adicione cookies manualmente para sites que exigem login (Instagram, TikTok, Shopee).</p>
-                            </div>
-
-                            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 text-blue-700 text-sm">
-                                <p><strong>Nota:</strong> Em ambiente Serverless (Vercel), não podemos usar navegadores automatizados. Você deve pegar os cookies do seu navegador (usando extensões como "Get cookies.txt") e colar aqui.</p>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Conteúdo do Cookie (Netscape Format)</label>
+                    {activeTab === "broadcast" && (
+                        <div className="animate-fade-in-up">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Megaphone className="text-orange-500" /> Enviar Mensagem (Broadcast)</h2>
+                            <div className="bg-orange-50 p-6 rounded-xl border border-orange-100">
+                                <p className="text-orange-800 mb-4 text-sm font-medium">⚠️ Envie mensagens para todos os usuários do bot.</p>
                                 <textarea
-                                    className="w-full h-48 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-mono text-xs"
-                                    placeholder="# Netscape HTTP Cookie File..."
+                                    className="w-full h-32 px-4 py-3 rounded-xl border border-orange-200 focus:ring-2 focus:ring-orange-400 outline-none resize-none mb-4"
+                                    placeholder="Digite sua mensagem aqui..."
                                 ></textarea>
-                                <button className="mt-3 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium shadow transition-colors w-full sm:w-auto">
-                                    Salvar Cookies
+                                <button className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-xl font-bold shadow transition-colors flex items-center gap-2">
+                                    <Megaphone className="w-5 h-5" /> ENVIAR PARA TODOS
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {activeTab === "users" && (
+                        <div className="animate-fade-in-up">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Users className="text-purple-600" /> Usuários do Bot</h2>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b-2 border-gray-100 text-gray-500 text-sm uppercase">
+                                            <th className="py-3">Nome</th>
+                                            <th className="py-3">Usuário</th>
+                                            <th className="py-3">Último Acesso</th>
+                                            <th className="py-3">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-gray-700">
+                                        {users.map(u => (
+                                            <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                                                <td className="py-3 font-medium">{u.name}</td>
+                                                <td className="py-3 text-blue-500">{u.user}</td>
+                                                <td className="py-3">{u.last}</td>
+                                                <td className="py-3"><button className="text-red-500 text-sm hover:underline">Bloquear</button></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "donors" && (
+                        <div className="animate-fade-in-up">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Heart className="text-pink-500" /> Histórico de Doações</h2>
+                            <div className="bg-pink-50 p-8 rounded-xl text-center border border-pink-100">
+                                <Heart className="w-16 h-16 text-pink-300 mx-auto mb-4" />
+                                <p className="text-pink-800 font-medium">Nenhuma doação registrada ainda.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "cookies" && (
+                        <div className="animate-fade-in-up">
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Settings className="text-gray-600" /> Configuração de Cookies</h2>
+                            <div className="bg-gray-50 border-l-4 border-gray-400 p-4 text-gray-700 text-sm mb-6">
+                                <p>Cole aqui os cookies para permitir downloads de TikTok, Instagram, etc.</p>
+                            </div>
+                            <textarea
+                                className="w-full h-48 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none font-mono text-xs"
+                                placeholder="# Netscape HTTP Cookie File..."
+                            ></textarea>
+                            <button className="mt-4 bg-gray-800 hover:bg-black text-white px-8 py-3 rounded-xl font-bold shadow transition-colors">
+                                SALVAR COOKIES
+                            </button>
                         </div>
                     )}
 
