@@ -1,4 +1,17 @@
-import yt_dlp
+from ..logger import Logger
+
+logger = Logger()
+
+class MyYtdlLogger:
+    def debug(self, msg):
+        if not msg.startswith('[debug] '):
+            logger.log(f"[yt-dlp] {msg}", "INFO")
+    def info(self, msg):
+        logger.log(f"[yt-dlp] {msg}", "INFO")
+    def warning(self, msg):
+        logger.log(f"[yt-dlp] {msg}", "WARN")
+    def error(self, msg):
+        logger.log(f"[yt-dlp ERROR] {msg}", "ERROR")
 
 class SocialDownloader:
     def __init__(self):
@@ -11,8 +24,9 @@ class SocialDownloader:
         Vamos tentar obter a URL direta (format URL) para que o frontend baixe ou exiba.
         """
         ydl_opts = {
-            'quiet': True,
-            'no_warnings': True,
+            'quiet': False, # Precisamos ver os logs
+            'logger': MyYtdlLogger(),
+            'no_warnings': False,
             'format': 'best', # Tenta pegar a melhor disponível
             'noplaylist': True,
             'extract_flat': True, # Tenta não baixar, apenas extrair

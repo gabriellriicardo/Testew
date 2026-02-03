@@ -48,6 +48,7 @@ export default function Home() {
     const [url, setUrl] = useState("");
     const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
     const [videoTitle, setVideoTitle] = useState<string | null>(null);
+    const [readyDownloadUrl, setReadyDownloadUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [botToken, setBotToken] = useState("");
 
@@ -61,8 +62,9 @@ export default function Home() {
         e.preventDefault();
         if (!url) return;
         setLoading(true);
-        setDownloadStatus("🔍 Processando link...");
+        setDownloadStatus("🔍 Buscando vídeo...");
         setVideoTitle(null);
+        setReadyDownloadUrl(null);
 
         try {
             const res = await fetch("/api/download", {
@@ -72,33 +74,37 @@ export default function Home() {
             });
             const data = await res.json();
             if (res.ok && data.download_url) {
-                setVideoTitle(data.title || "Vídeo sem título");
-                setDownloadStatus("⬇️ Baixando arquivo...");
-
-                // Tenta baixar o arquivo diretamente (comportamento de Desktop)
-                try {
-                    const fileRes = await fetch(data.download_url);
-                    const blob = await fileRes.blob();
-                    const blobUrl = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = blobUrl;
-                    a.download = `${data.title || 'video'}.mp4`; // Nome do arquivo
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(blobUrl);
-                    document.body.removeChild(a);
-                    setDownloadStatus("✅ Download concluído!");
-                } catch (e) {
-                    // Fallback se o navegador bloquear o fetch direto (CORS)
-                    setDownloadStatus("⚠️ O navegador bloqueou o download direto. Abrindo na nova aba...");
-                    window.open(data.download_url, '_blank');
-                }
-
+                setVideoTitle(data.title || "Vídeo Encontrado");
+                setReadyDownloadUrl(data.download_url);
+                setDownloadStatus("✅ Vídeo pronto! Clique abaixo para baixar.");
             } else {
                 setDownloadStatus("❌ Erro: " + (data.error || "Desconhecido"));
             }
         } catch { setDownloadStatus("❌ Erro de conexão."); }
         setLoading(false);
+    };
+
+    const triggerFileDownload = async () => {
+        if (!readyDownloadUrl) return;
+        setDownloadStatus("⬇️ Iniciando download...");
+
+        try {
+            const fileRes = await fetch(readyDownloadUrl);
+            const blob = await fileRes.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `${videoTitle ? videoTitle.replace(/[^a-z0-9]/gi, '_').substring(0, 50) : 'video'}.mp4`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+            setDownloadStatus("✅ Download concluído com sucesso!");
+        } catch (e) {
+            setDownloadStatus("⚠️ Download direto bloqueado. Tentando via link...");
+            // Fallback: Tenta forçar download via location.href (pode navegar, mas evita nova aba se possível)
+            window.location.href = readyDownloadUrl;
+        }
     };
 
     const handleSetWebhook = async () => {
@@ -188,32 +194,45 @@ export default function Home() {
                         <div className="animate-fade-in-up">
                             <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Download className="text-primary" /> Baixar Vídeos</h2>
                             <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
-                                <input
-                                    type="text"
-                                    value={url}
-                                    onChange={(e) => setUrl(e.target.value)}
-                                    placeholder="Cole o link aqui (Shopee, TikTok, Instagram, Youtube...)"
-                                    className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all text-lg mb-4 shadow-sm"
-                                />
+                                <div className="relative mb-4">
+                                    <input
+                                        type="text"
+                                        placeholder="Cole o link aqui (Shopee, TikTok, Insta...)"
+                                        className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-transparent focus:border-blue-500 focus:outline-none bg-gray-50 text-gray-700 shadow-inner transition-all"
+                                        value={url}
+                                        onChange={(e) => setUrl(e.target.value)}
+                                    />
+                                </div>
                                 <button
                                     onClick={handleDownload}
                                     disabled={loading}
-                                    className="w-full py-4 rounded-xl font-bold text-white bg-gradient-to-r from-primary to-primary_dark hover:shadow-lg transform active:scale-[0.99] transition-all flex justify-center items-center gap-2"
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2"
                                 >
-                                    {loading ? <span className="animate-spin">⌛</span> : <Download />}
-                                    BAIXAR AGORA
+                                    {loading ? <span className="animate-spin">⌛</span> : <Bot className="w-6 h-6" />}
+                                    PROCESSAR LINK
                                 </button>
 
                                 {videoTitle && (
-                                    <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex items-start gap-4 animate-fade-in-up">
-                                        <div className="bg-primary/10 p-3 rounded-full text-primary">
-                                            <Play className="w-6 h-6" />
+                                    <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col md:flex-row items-center gap-4 animate-fade-in-up">
+                                        <div className="bg-primary/10 p-3 rounded-full text-primary flex-shrink-0">
+                                            <Play className="w-8 h-8 text-blue-600" />
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-gray-800 text-lg">Vídeo Encontrado</h3>
-                                            <p className="text-gray-600 text-sm mt-1">{videoTitle}</p>
+                                        <div className="flex-1 text-center md:text-left">
+                                            <h3 className="font-bold text-gray-800 text-lg line-clamp-2">{videoTitle}</h3>
+                                            <p className="text-gray-500 text-xs mt-1">Clique abaixo para salvar o arquivo.</p>
                                         </div>
                                     </div>
+                                )}
+
+                                {readyDownloadUrl && (
+                                    <button
+                                        type="button"
+                                        onClick={triggerFileDownload}
+                                        className="mt-4 w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all shimmer flex items-center justify-center gap-2"
+                                    >
+                                        <Download className="w-6 h-6" />
+                                        BAIXAR AGORA
+                                    </button>
                                 )}
 
                                 {downloadStatus && (

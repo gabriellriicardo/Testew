@@ -3,6 +3,9 @@ import json
 import requests
 from urllib.parse import unquote
 from bs4 import BeautifulSoup
+from ..logger import Logger
+
+logger = Logger()
 
 class ShopeeDownloader:
     def __init__(self):
@@ -13,6 +16,7 @@ class ShopeeDownloader:
         self.session = requests.Session()
 
     def get_video_url(self, share_url):
+        logger.log(f"Shopee: Processando {share_url}", "INFO")
         try:
             # Follow redirects manually to get final URL
             response = self.session.get(share_url, headers=self.headers, allow_redirects=True, timeout=10)
@@ -29,6 +33,9 @@ class ShopeeDownloader:
             script_tag = soup.find('script', {'id': '__NEXT_DATA__', 'type': 'application/json'})
 
             if not script_tag:
+                logger.log("Shopee: __NEXT_DATA__ não encontrado no HTML", "ERROR")
+                # Loga pedaço do HTML para debug (cuidado com tamanho)
+                logger.log(f"Shopee HTML Snippet: {response.text[:200]}...", "WARN")
                 return None, "Dados não encontrados"
 
             json_data = json.loads(script_tag.string)
@@ -59,4 +66,5 @@ class ShopeeDownloader:
             return None, "Vídeo não encontrado no JSON"
 
         except Exception as e:
+            logger.log(f"Shopee Exception: {str(e)}", "ERROR")
             return None, str(e)

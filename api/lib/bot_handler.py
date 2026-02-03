@@ -6,6 +6,9 @@ from .utils import resolve_link_type
 from .database import DatabaseManager
 from .downloaders.shopee import ShopeeDownloader
 from .downloaders.social import SocialDownloader
+from .logger import Logger
+
+logger = Logger()
 
 # Instancia Singletons (Recriados a cada request no serverless, idealmente cacheado fora do handler)
 db = DatabaseManager()
@@ -128,10 +131,13 @@ class BotHandler:
                 caption = f"🎥 **{title}**\n\n🔗 [Link Original]({url})\n🤖 Via AlfaVision Web"
                 
                 try:
+                    logger.log(f"Enviando vídeo para {cid}...", "BOT")
                     self.bot.send_video(cid, video_url, caption=caption, parse_mode="Markdown")
+                    logger.log("Vídeo enviado com sucesso!", "SUCCESS")
                 except Exception as e:
-                    # Fallback se a URL falhar (ex: expirada ou bloqueada pelo Telegram)
-                    self.bot.send_message(cid, f"🎥 **Não consegui enviar o vídeo direto.**\n\n👇 **Clique para baixar:**\n{video_url}", parse_mode="Markdown")
+                    logger.log(f"Falha ao enviar vídeo (Telegram API): {str(e)}", "ERROR")
+                    # Fallback
+                    self.bot.send_message(cid, f"🎥 **Não consegui enviar o vídeo direto.**\n\nErro: `{str(e)}`\n\n👇 **Clique para baixar:**\n{video_url}", parse_mode="Markdown")
 
                 self.bot.delete_message(cid, status_msg.message_id)
                 db.increment_global_stat(link_type)
