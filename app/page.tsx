@@ -450,4 +450,6 @@ export default function Home() {
 
             </div>
 
-            {/* REMOVED PREVIOUS SIDE LOG COLUMN */}
+        </main>
+    );
+}
