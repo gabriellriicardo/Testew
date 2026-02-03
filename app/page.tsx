@@ -426,8 +426,8 @@ export default function Home() {
 
                 </div>
 
-                {/* LIVE LOGS SECTION */}
-                <div className="bg-[#1e1e1e] rounded-xl p-4 border border-gray-800 shadow-xl overflow-hidden">
+                {/* LIVE LOGS SECTION - MOVED TO BOTTOM OF CONTENT COLUMN */}
+                <div className="mt-8 bg-[#1e1e1e] rounded-xl p-4 border border-gray-800 shadow-xl overflow-hidden">
                     <div className="flex justify-between items-center mb-2 border-b border-gray-700 pb-2">
                         <p className="text-xs font-mono text-gray-400 flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
@@ -443,13 +443,11 @@ export default function Home() {
                             LIMPAR
                         </button>
                     </div>
-                    <div id="log-terminal" className="h-64 overflow-y-auto font-mono text-xs space-y-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
-                        {/* Log Items will be injected here or handled via state ideally, but simpler for polling updates */}
+                    <div id="log-terminal" className="h-48 overflow-y-auto font-mono text-xs space-y-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
                         <LogViewer />
                     </div>
                 </div>
 
             </div>
-        </main>
-    );
-}
+
+            {/* REMOVED PREVIOUS SIDE LOG COLUMN */}

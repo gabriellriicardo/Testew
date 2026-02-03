@@ -12,8 +12,23 @@ class ShopeeDownloader:
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Referer': 'https://shopee.com.br/',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
         }
         self.session = requests.Session()
+        
+        # --- CONFIGURAÇÃO DE RETENTATIVAS (PORTADO DO DESKTOP) ---
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+        
+        retry_strategy = Retry(
+            total=5,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "OPTIONS"]
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
 
     def get_video_url(self, share_url):
         logger.log(f"Shopee: Processando {share_url}", "INFO")
@@ -40,24 +55,27 @@ class ShopeeDownloader:
 
             json_data = json.loads(script_tag.string)
             
-            # Logic extracted from original shopee.py
+            # Logic extracted from original shopee.py (Desktop Version)
             props = json_data.get('props', {}).get('pageProps', {})
             video_url = None
             caption = "Shopee Video"
 
+            # 1. Tenta mediaInfo (Versão desktop prioriza isso)
             if 'mediaInfo' in props:
                 media_info = props['mediaInfo']
                 video_url = media_info.get('video', {}).get('watermarkVideoUrl')
-                caption = media_info.get('title') or caption
+                # Tenta achar caption no mediaInfo
+                caption = media_info.get('title') or media_info.get('content') or media_info.get('desc') or caption
             
+            # 2. Se não achou, tenta initialState > Product (Fallback)
             if not video_url:
                 initial_state = props.get('initialState', {})
                 product = initial_state.get('product', {}) if initial_state else props.get('product', {})
                 if product and 'video_info_list' in product:
                     video_list = product.get('video_info_list', [])
-                    if video_list:
+                    caption = product.get('name') or product.get('description') or caption
+                    if video_list and len(video_list) > 0:
                         video_url = video_list[0].get('video_url')
-                        caption = product.get('name') or caption
 
             if video_url:
                 # Returns the direct URL (playable in browser)
