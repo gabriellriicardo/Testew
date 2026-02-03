@@ -23,8 +23,18 @@ social_dl = SocialDownloader()
 # O webhook receberá o token na query string ou header seria o ideal, 
 # mas vamos simplificar assumindo um token fixo ou passado na URL do webhook.
 
-@app.route("/api/download", methods=['POST'])
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
+@app.route("/api/download", methods=['POST', 'OPTIONS'])
 def download_route():
+    if request.method == 'OPTIONS':
+        return jsonify({"status": "ok"}), 200
+
     try:
         data = request.json
         url = data.get('url')
@@ -61,6 +71,32 @@ def webhook():
     except Exception as e:
         print(f"Webhook Error: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/bot/setup", methods=['POST'])
+def bot_setup():
+    try:
+        data = request.json
+        token = data.get('token')
+        if not token: return jsonify({"error": "Token missing"}), 400
+        
+        # Constrói a URL do Webhook dinamicamente baseada no Host atual
+        host_url = request.host_url.rstrip('/') # ex: https://alfavision.vercel.app
+        webhook_url = f"{host_url}/api/bot/webhook?token={token}"
+        
+        # Chama a API do Telegram
+        import requests
+        tg_url = f"https://api.telegram.org/bot{token}/setWebhook?url={webhook_url}"
+        res = requests.get(tg_url)
+        tg_data = res.json()
+        
+        if tg_data.get('ok'):
+             return jsonify({"status": "success", "detail": "Bot conectado com sucesso!"})
+        else:
+             return jsonify({"error": tg_data.get('description', 'Erro no Telegram')}), 400
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(port=5328)

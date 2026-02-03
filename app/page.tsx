@@ -40,10 +40,24 @@ export default function Home() {
 
     const handleSetWebhook = async () => {
         if (!botToken) return alert("Insira o token!");
-        const webhookUrl = `${window.location.origin}/api/bot/webhook?token=${botToken}`;
-        const url = `https://api.telegram.org/bot${botToken}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
-        window.open(url, '_blank');
-        alert(`Tentando configurar Webhook para: ${webhookUrl}\nVerifique a nova aba!`);
+        setLoading(true);
+        try {
+            const res = await fetch("/api/bot/setup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: botToken }),
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                alert("✅ " + data.detail);
+            } else {
+                alert("❌ Erro: " + (data.error || "Falha desconhecida"));
+            }
+        } catch (e) {
+            alert("Erro de conexão ao tentar configurar o bot.");
+        }
+        setLoading(false);
     };
 
     return (
@@ -80,8 +94,8 @@ export default function Home() {
                                 <button
                                     onClick={() => setActiveTab(item.id)}
                                     className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium transition-all duration-200 ${activeTab === item.id
-                                            ? "bg-primary text-white shadow-md transform scale-[1.02]"
-                                            : "text-gray-600 hover:bg-gray-50 hover:pl-5"
+                                        ? "bg-primary text-white shadow-md transform scale-[1.02]"
+                                        : "text-gray-600 hover:bg-gray-50 hover:pl-5"
                                         }`}
                                 >
                                     <item.icon className="w-5 h-5" />
