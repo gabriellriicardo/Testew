@@ -1,12 +1,53 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { Download, Bot, Settings, Users, LogOut, Play, Square, Save, Radio, BarChart3, Megaphone, Heart } from "lucide-react";
+import { useState, FormEvent, useEffect } from "react";
+import { Download, Bot, Settings, Users, LogOut, Play, Square, Save, Radio, BarChart3, Megaphone, Heart, Terminal } from "lucide-react";
+
+// Componente simples para logs
+function LogViewer() {
+    const [logs, setLogs] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchLogs = async () => {
+            try {
+                const res = await fetch("/api/logs");
+                if (res.ok) {
+                    const data = await res.json();
+                    setLogs(data.logs);
+                }
+            } catch (e) { }
+        };
+
+        fetchLogs();
+        const interval = setInterval(fetchLogs, 3000); // Poll a cada 3s
+        return () => clearInterval(interval);
+    }, []);
+
+    if (logs.length === 0) return <p className="text-gray-500 italic">Aguardando atividades...</p>;
+
+    return (
+        <>
+            {logs.map((log, i) => (
+                <div key={i} className="flex gap-2 border-b border-gray-800/50 pb-1 last:border-0">
+                    <span className="text-gray-500">[{log.time}]</span>
+                    {log.type === "INFO" && <span className="text-blue-400 font-bold">INFO:</span>}
+                    {log.type === "ERROR" && <span className="text-red-500 font-bold">ERRO:</span>}
+                    {log.type === "SUCCESS" && <span className="text-green-400 font-bold">SUCESSO:</span>}
+                    {log.type === "WARN" && <span className="text-yellow-400 font-bold">ALERTA:</span>}
+                    {log.type === "DOWN" && <span className="text-purple-400 font-bold">DOWN:</span>}
+                    {log.type === "BOT" && <span className="text-cyan-400 font-bold">BOT:</span>}
+                    <span className="text-gray-300">{log.msg}</span>
+                </div>
+            ))}
+        </>
+    );
+}
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState("download");
     const [url, setUrl] = useState("");
     const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
+    const [videoTitle, setVideoTitle] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [botToken, setBotToken] = useState("");
 
@@ -20,7 +61,9 @@ export default function Home() {
         e.preventDefault();
         if (!url) return;
         setLoading(true);
-        setDownloadStatus("Processando...");
+        setDownloadStatus("🔍 Processando link...");
+        setVideoTitle(null);
+
         try {
             const res = await fetch("/api/download", {
                 method: "POST",
@@ -29,6 +72,7 @@ export default function Home() {
             });
             const data = await res.json();
             if (res.ok && data.download_url) {
+                setVideoTitle(data.title || "Vídeo sem título");
                 setDownloadStatus("⬇️ Baixando arquivo...");
 
                 // Tenta baixar o arquivo diretamente (comportamento de Desktop)
@@ -159,8 +203,22 @@ export default function Home() {
                                     {loading ? <span className="animate-spin">⌛</span> : <Download />}
                                     BAIXAR AGORA
                                 </button>
+
+                                {videoTitle && (
+                                    <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex items-start gap-4 animate-fade-in-up">
+                                        <div className="bg-primary/10 p-3 rounded-full text-primary">
+                                            <Play className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-gray-800 text-lg">Vídeo Encontrado</h3>
+                                            <p className="text-gray-600 text-sm mt-1">{videoTitle}</p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {downloadStatus && (
-                                    <div className="mt-4 p-4 rounded-lg bg-blue-50 text-blue-800 font-medium border border-blue-100 animate-pulse">
+                                    <div className={`mt-4 p-4 rounded-lg font-medium border animate-pulse ${downloadStatus.includes("Erro") ? "bg-red-50 text-red-700 border-red-200" : "bg-blue-50 text-blue-800 border-blue-100"
+                                        }`}>
                                         {downloadStatus}
                                     </div>
                                 )}
@@ -348,6 +406,30 @@ export default function Home() {
                     )}
 
                 </div>
+
+                {/* LIVE LOGS SECTION */}
+                <div className="bg-[#1e1e1e] rounded-xl p-4 border border-gray-800 shadow-xl overflow-hidden">
+                    <div className="flex justify-between items-center mb-2 border-b border-gray-700 pb-2">
+                        <p className="text-xs font-mono text-gray-400 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            TERMINAL DO ROBO (Ao Vivo)
+                        </p>
+                        <button
+                            onClick={() => {
+                                const term = document.getElementById('log-terminal');
+                                if (term) term.innerHTML = '';
+                            }}
+                            className="text-[10px] text-gray-500 hover:text-white"
+                        >
+                            LIMPAR
+                        </button>
+                    </div>
+                    <div id="log-terminal" className="h-64 overflow-y-auto font-mono text-xs space-y-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent pr-2">
+                        {/* Log Items will be injected here or handled via state ideally, but simpler for polling updates */}
+                        <LogViewer />
+                    </div>
+                </div>
+
             </div>
         </main>
     );

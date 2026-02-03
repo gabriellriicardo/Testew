@@ -11,6 +11,7 @@ from lib.downloaders.social import SocialDownloader
 from lib.database import DatabaseManager
 from lib.payment_manager import PaymentManager
 from lib.bot_handler import BotHandler
+from lib.logger import Logger
 
 app = Flask(__name__)
 
@@ -19,6 +20,7 @@ db = DatabaseManager()
 shopee_dl = ShopeeDownloader()
 social_dl = SocialDownloader()
 payment_mgr = PaymentManager("APP_USR-1275582383496606-020218-a78132e6048392984782ecb5a87ec9c7-242942440")
+logger = Logger()
 
 # Bot Token deve ser setado via ENV VAR na Vercel ou via Config no Frontend (Mock)
 # Para fins de teste/demo, o usuário configurará no Frontend.
@@ -47,15 +49,21 @@ def download_route():
 
         video_url, title = None, "Video"
         if link_type == 'VIDEO':
+            logger.log(f"Iniciando download Shopee: {url}", "DOWN")
             video_url, title = shopee_dl.get_video_url(url)
         else:
+            logger.log(f"Iniciando download Social ({link_type}): {url}", "DOWN")
             video_url, title = social_dl.get_video_info(url)
 
-        if not video_url: return jsonify({"error": "Download failed"}), 500
+        if not video_url: 
+            logger.log(f"Download falhou para: {url}", "ERROR")
+            return jsonify({"error": "Download failed"}), 500
 
+        logger.log(f"Sucesso: {title}", "SUCCESS")
         db.increment_global_stat(link_type)
         return jsonify({"status": "success", "title": title, "download_url": video_url})
     except Exception as e:
+        logger.log(f"Erro CRÍTICO no download: {str(e)}", "ERROR")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/bot/webhook", methods=['POST'])
@@ -68,9 +76,11 @@ def webhook():
 
     try:
         handler = BotHandler(token)
+        logger.log("Recebido Webhook do Telegram", "BOT")
         handler.process_update(request.data.decode('utf-8'))
         return jsonify({"status": "ok"}), 200
     except Exception as e:
+        logger.log(f"Erro no Webhook: {str(e)}", "ERROR")
         print(f"Webhook Error: {e}")
         return jsonify({"error": str(e)}), 500
 
@@ -106,6 +116,8 @@ def bot_disconnect():
         data = request.json
         token = data.get('token')
         if not token: return jsonify({"error": "Token missing"}), 400
+        
+        logger.log("Solicitado desconexão do bot...", "WARN")
         
         # Chama a API do Telegram para limpar o webhook
         import requests
@@ -144,6 +156,10 @@ def status_payment():
         return jsonify({"status": status})
      except Exception as e:
          return jsonify({"error": str(e)}), 500
+
+@app.route("/api/logs", methods=['GET'])
+def get_logs():
+    return jsonify({"logs": logger.get_logs()})
 
 if __name__ == "__main__":
     app.run(port=5328)
