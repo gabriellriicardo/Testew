@@ -9,6 +9,7 @@ from lib.utils import resolve_link_type
 from lib.downloaders.shopee import ShopeeDownloader
 from lib.downloaders.social import SocialDownloader
 from lib.database import DatabaseManager
+from lib.payment_manager import PaymentManager
 from lib.bot_handler import BotHandler
 
 app = Flask(__name__)
@@ -17,6 +18,7 @@ app = Flask(__name__)
 db = DatabaseManager()
 shopee_dl = ShopeeDownloader()
 social_dl = SocialDownloader()
+payment_mgr = PaymentManager("APP_USR-1275582383496606-020218-a78132e6048392984782ecb5a87ec9c7-242942440")
 
 # Bot Token deve ser setado via ENV VAR na Vercel ou via Config no Frontend (Mock)
 # Para fins de teste/demo, o usuário configurará no Frontend.
@@ -97,6 +99,51 @@ def bot_setup():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/bot/disconnect", methods=['POST'])
+def bot_disconnect():
+    try:
+        data = request.json
+        token = data.get('token')
+        if not token: return jsonify({"error": "Token missing"}), 400
+        
+        # Chama a API do Telegram para limpar o webhook
+        import requests
+        tg_url = f"https://api.telegram.org/bot{token}/deleteWebhook"
+        res = requests.get(tg_url)
+        tg_data = res.json()
+        
+        if tg_data.get('ok'):
+             return jsonify({"status": "success", "detail": "Bot desconectado com sucesso!"})
+        else:
+             return jsonify({"error": tg_data.get('description', 'Erro no Telegram')}), 400
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/payment/create", methods=['POST'])
+def create_payment():
+    try:
+        data = request.json
+        amount = data.get('amount')
+        if not amount: return jsonify({"error": "Valor inválido"}), 400
+        
+        res = payment_mgr.create_pix_payment(amount, "Doacao AlfaVision Web")
+        if res:
+            return jsonify({"status": "success", "data": res})
+        return jsonify({"error": "Falha ao criar Pix"}), 500
+    except Exception as e:
+         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/payment/status", methods=['POST'])
+def status_payment():
+     try:
+        data = request.json
+        pid = data.get('id')
+        status = payment_mgr.get_payment_status(pid)
+        return jsonify({"status": status})
+     except Exception as e:
+         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(port=5328)

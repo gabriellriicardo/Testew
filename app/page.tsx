@@ -29,8 +29,27 @@ export default function Home() {
             });
             const data = await res.json();
             if (res.ok && data.download_url) {
-                setDownloadStatus("✅ Sucesso! Clique abaixo para baixar.");
-                window.open(data.download_url, '_blank');
+                setDownloadStatus("⬇️ Baixando arquivo...");
+
+                // Tenta baixar o arquivo diretamente (comportamento de Desktop)
+                try {
+                    const fileRes = await fetch(data.download_url);
+                    const blob = await fileRes.blob();
+                    const blobUrl = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = `${data.title || 'video'}.mp4`; // Nome do arquivo
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(blobUrl);
+                    document.body.removeChild(a);
+                    setDownloadStatus("✅ Download concluído!");
+                } catch (e) {
+                    // Fallback se o navegador bloquear o fetch direto (CORS)
+                    setDownloadStatus("⚠️ O navegador bloqueou o download direto. Abrindo na nova aba...");
+                    window.open(data.download_url, '_blank');
+                }
+
             } else {
                 setDownloadStatus("❌ Erro: " + (data.error || "Desconhecido"));
             }
@@ -48,15 +67,27 @@ export default function Home() {
                 body: JSON.stringify({ token: botToken }),
             });
             const data = await res.json();
+            if (res.ok) alert("✅ " + data.detail);
+            else alert("❌ Erro: " + (data.error));
+        } catch (e) { alert("Erro de conexão."); }
+        setLoading(false);
+    };
 
-            if (res.ok) {
-                alert("✅ " + data.detail);
-            } else {
-                alert("❌ Erro: " + (data.error || "Falha desconhecida"));
-            }
-        } catch (e) {
-            alert("Erro de conexão ao tentar configurar o bot.");
-        }
+    const handleDisconnectBot = async () => {
+        if (!botToken) return alert("Insira o token para desconectar!");
+        if (!confirm("Tem certeza que deseja parar o bot?")) return;
+
+        setLoading(true);
+        try {
+            const res = await fetch("/api/bot/disconnect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: botToken }),
+            });
+            const data = await res.json();
+            if (res.ok) alert("🛑 " + data.detail);
+            else alert("❌ Erro: " + (data.error));
+        } catch (e) { alert("Erro de conexão."); }
         setLoading(false);
     };
 
@@ -158,6 +189,13 @@ export default function Home() {
                                         >
                                             ATIVAR BOT
                                         </button>
+                                        <button
+                                            onClick={handleDisconnectBot}
+                                            className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 transition-colors flex items-center justify-center"
+                                            title="Desconectar Bot"
+                                        >
+                                            <Square className="w-5 h-5" />
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -210,14 +248,89 @@ export default function Home() {
 
                     {activeTab === "donors" && (
                         <div className="animate-fade-in-up">
-                            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Heart className="text-pink-500" /> Histórico de Doações</h2>
-                            <div className="bg-pink-50 p-8 rounded-xl text-center border border-pink-100">
-                                <Heart className="w-16 h-16 text-pink-300 mx-auto mb-4" />
-                                <p className="text-pink-800 font-medium">Nenhuma doação registrada ainda.</p>
+                            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Heart className="text-pink-500" /> Fazer um Mimo (Pix)</h2>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* Card Gerar Pix */}
+                                <div className="bg-pink-50 p-6 rounded-xl border border-pink-100">
+                                    <p className="text-pink-800 mb-4 font-medium">Ajude a manter o bot online! ❤️</p>
+
+                                    <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
+                                        <label className="block text-sm font-bold text-gray-600 mb-1">Valor (R$)</label>
+                                        <input
+                                            type="number"
+                                            className="w-full text-2xl font-bold text-pink-600 border-b-2 border-pink-200 focus:border-pink-500 outline-none py-1"
+                                            placeholder="5.00"
+                                            defaultValue="5.00"
+                                            id="pixAmount"
+                                        />
+                                    </div>
+
+                                    <button
+                                        onClick={async () => {
+                                            const val = (document.getElementById('pixAmount') as HTMLInputElement).value;
+                                            if (!val) return alert("Digite um valor!");
+
+                                            const btn = document.getElementById('btnPix') as HTMLButtonElement;
+                                            const resDiv = document.getElementById('pixResult') as HTMLDivElement;
+
+                                            btn.textContent = "Gerando...";
+                                            btn.disabled = true;
+
+                                            try {
+                                                const res = await fetch("/api/payment/create", {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ amount: val })
+                                                });
+                                                const data = await res.json();
+                                                if (res.ok && data.data) {
+                                                    const pix = data.data;
+                                                    (document.getElementById('qrImg') as HTMLImageElement).src = `data:image/png;base64,${pix.qr_code_base64}`;
+                                                    (document.getElementById('txtCopy') as HTMLTextAreaElement).value = pix.qr_code;
+                                                    resDiv.classList.remove('hidden');
+                                                } else {
+                                                    alert("Erro ao gerar Pix: " + data.error);
+                                                }
+                                            } catch (e) { alert("Erro de conexão"); }
+
+                                            btn.textContent = "Gerar Pix";
+                                            btn.disabled = false;
+                                        }}
+                                        id="btnPix"
+                                        className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-xl font-bold shadow transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <Heart className="w-5 h-5" /> GERAR PIX
+                                    </button>
+                                </div>
+
+                                {/* Card Resultado (Hidden by default) */}
+                                <div id="pixResult" className="hidden border-2 border-dashed border-gray-300 rounded-xl p-6 flex flex-col items-center justify-center bg-gray-50">
+                                    <p className="text-sm font-bold text-gray-500 mb-4">Escaneie o QR Code:</p>
+                                    <img id="qrImg" className="w-48 h-48 bg-white p-2 rounded-lg shadow-sm mb-4" />
+
+                                    <p className="text-xs text-gray-400 mb-1 w-full text-left">Ou Copia e Cola:</p>
+                                    <textarea
+                                        id="txtCopy"
+                                        className="w-full h-24 text-xs p-2 border rounded bg-white text-gray-600 mb-2 font-mono"
+                                        readOnly
+                                    ></textarea>
+                                    <button
+                                        onClick={() => {
+                                            const txt = document.getElementById('txtCopy') as HTMLTextAreaElement;
+                                            txt.select();
+                                            document.execCommand('copy');
+                                            alert("Código copiado!");
+                                        }}
+                                        className="text-pink-600 font-bold text-sm hover:underline"
+                                    >
+                                        Copiar Código
+                                    </button>
+                                </div>
                             </div>
+
                         </div>
                     )}
-
                     {activeTab === "cookies" && (
                         <div className="animate-fade-in-up">
                             <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2"><Settings className="text-gray-600" /> Configuração de Cookies</h2>
