@@ -27,9 +27,9 @@ class SocialDownloader:
             'quiet': False, # Precisamos ver os logs
             'logger': MyYtdlLogger(),
             'no_warnings': False,
-            'format': 'best', # Tenta pegar a melhor disponível
+            'format': 'best[ext=mp4]/best', # Tenta pegar MP4 preferencialmente
             'noplaylist': True,
-            'extract_flat': True, # Tenta não baixar, apenas extrair
+            # 'extract_flat': True, # REMOVIDO: Isso impedia a resolução da URL real do video (CDN)
             'socket_timeout': 10,
         }
         
