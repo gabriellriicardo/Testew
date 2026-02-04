@@ -1,4 +1,3 @@
-```python
 import yt_dlp
 import requests
 from bs4 import BeautifulSoup
@@ -171,4 +170,3 @@ class SocialDownloader:
 
         logger.log("❌ Todas as estratégias falharam.", "ERROR")
         return None, last_error
-```
